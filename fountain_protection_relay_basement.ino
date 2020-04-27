@@ -1,10 +1,13 @@
 
 #include "BLEDevice.h"
 //#include "BLEScan.h"
+#include "wifi_details.h"
+#include <ArduinoOTA.h>
+#include <ESPmDNS.h>
 
 #define LED_PIN            2 //onboard led
 #define RELAY_PIN          33//onboard relay
-
+#define SKETCH_VERSION "1.0.33"
 
 
 const int wdtTimeout = 10000;  //time in ms to trigger the watchdog
@@ -140,8 +143,54 @@ void setup() {
   digitalWrite(LED_PIN, LOW);
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
-  BLEDevice::init("");
 
+  // START WIFI INIT  
+  // delete old config
+  WiFi.disconnect(true);
+  // Examples of different ways to register wifi events
+  WiFi.onEvent(WiFiEvent);
+  WiFi.begin(ssid, password);
+  WiFi.setAutoReconnect(true);
+  Serial.println("Wait for WiFi... ");
+  //start Bonjour (mDNS) responder
+  if (MDNS.begin("esp32_basement")) {
+    MDNS.setInstanceName("ESP32 Fountain Basement Board");
+    Serial.println("mDNS responder started");
+    MDNS.addService("http", "tcp", 1111);
+  }
+  else Serial.println("Error setting up MDNS responder!");
+
+
+  ArduinoOTA
+  .onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH)
+      type = "sketch";
+    else // U_SPIFFS
+      type = "filesystem";
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    Serial.println("Start updating " + type);
+  })
+  .onEnd([]() {
+    Serial.println("\nEnd");
+  })
+  .onProgress([](unsigned int progress, unsigned int total) {
+    //Serial.printf("Progress: %u%%\r", (progress / (total / 100))); led_status_green_blink();
+  })
+  .onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+
+  ArduinoOTA.begin();
+  
+  
+  
+  BLEDevice::init("");
   // Retrieve a Scanner and set the callback we want to use to be informed when we
   // have detected a new device.  Specify that we want active scanning and start the
   // scan to run for 5 seconds.
@@ -163,7 +212,7 @@ void setup() {
 
 // This is the Arduino main loop function.
 void loop() {
-
+  ArduinoOTA.handle();
   // If the flag "doConnect" is true then we have scanned for and found the desired
   // BLE Server with which we wish to connect.  Now we connect to it.  Once we are 
   // connected we set the connected flag to be true.

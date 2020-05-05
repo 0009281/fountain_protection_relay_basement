@@ -9,11 +9,8 @@
 #define RELAY_PIN          33//onboard relay
 #define SKETCH_VERSION "1.0.33"
 
-
 const int wdtTimeout = 10000;  //time in ms to trigger the watchdog
 hw_timer_t *timerWDT = NULL;
-
-
 
 // The remote service we wish to connect to.
 static BLEUUID serviceUUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
@@ -35,20 +32,21 @@ static void notifyCallback(
   bool isNotify) {
     String command_from_sensor_module;
     digitalWrite(LED_PIN, HIGH);
-    delay(10);
+    delay(100);
     digitalWrite(LED_PIN, LOW);
-    Serial.print("Notify callback for characteristic ");
-    Serial.print(pBLERemoteCharacteristic->getUUID().toString().c_str());
-    Serial.print(" of data length ");
-    Serial.println(length);
-    //Serial.print("data: ");
-    //Serial.println((char*)pData);
     for (uint8_t i=0; i< length; i++) command_from_sensor_module += (char)pData[i];
     command_from_sensor_module += "\0";
     Serial.println(command_from_sensor_module);
-    if (command_from_sensor_module=="Enable Fountain") { digitalWrite(RELAY_PIN, HIGH); Serial.println("Enable FNT"); timerWrite(timerWDT, 0);}
-    else if (command_from_sensor_module=="Disable Fountain") { digitalWrite(RELAY_PIN, LOW);Serial.println("Disable FNT");}
+    if (command_from_sensor_module=="Enable Fountain") { 
+      digitalWrite(RELAY_PIN, HIGH); 
+      timerWrite(timerWDT, 0);
+    }
+    else if (command_from_sensor_module=="Disable Fountain") { 
+      digitalWrite(RELAY_PIN, LOW);
+      timerWrite(timerWDT, 0);
+    }
     else if (command_from_sensor_module=="PING WDT")   timerWrite(timerWDT, 0); //reset timer (feed watchdog);
+    
 }
 
 class MyClientCallback : public BLEClientCallbacks {
@@ -131,7 +129,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 }; // MyAdvertisedDeviceCallbacks
 
 void IRAM_ATTR resetModule() {
-  ets_printf("reboot\n");
+  ets_printf("Reboot, beacause no data from the server\n");
   esp_restart();
 }
 
@@ -190,7 +188,7 @@ void setup() {
   
   
   
-  BLEDevice::init("");
+  BLEDevice::init("ESP32");
   // Retrieve a Scanner and set the callback we want to use to be informed when we
   // have detected a new device.  Specify that we want active scanning and start the
   // scan to run for 5 seconds.
@@ -213,6 +211,7 @@ void setup() {
 // This is the Arduino main loop function.
 void loop() {
   ArduinoOTA.handle();
+  
   // If the flag "doConnect" is true then we have scanned for and found the desired
   // BLE Server with which we wish to connect.  Now we connect to it.  Once we are 
   // connected we set the connected flag to be true.
@@ -233,13 +232,11 @@ void loop() {
     
     // Set the characteristic's value to be the array of bytes that is actually a string.
     pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
-  }else if(doScan){
+  }else if(doScan) {
     BLEDevice::getScan()->start(0);  // this is just eample to start scan after disconnect, most likely there is better way to do it in arduino
     //doConnect == true;
     //BLEDevice::getScan()->start(5,false);  // this is just eample to start scan after disconnect, most likely there is better way to do it in arduino
-  } else doScan=true;
+  } //else doScan=true;
 
-   //Serial.println("Connected \"" + String(connected) + "\"");
-    
   delay(1000); // Delay a second between loops.
 } // End of loop

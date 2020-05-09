@@ -31,18 +31,20 @@ static void notifyCallback(
   size_t length,
   bool isNotify) {
     String command_from_sensor_module;
-    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
     delay(100);
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
     for (uint8_t i=0; i< length; i++) command_from_sensor_module += (char)pData[i];
     command_from_sensor_module += "\0";
     Serial.println(command_from_sensor_module);
     if (command_from_sensor_module=="Enable Fountain") { 
       digitalWrite(RELAY_PIN, HIGH); 
+      digitalWrite(LED_PIN, HIGH);
       timerWrite(timerWDT, 0);
     }
     else if (command_from_sensor_module=="Disable Fountain") { 
       digitalWrite(RELAY_PIN, LOW);
+      digitalWrite(LED_PIN, LOW);
       timerWrite(timerWDT, 0);
     }
     else if (command_from_sensor_module=="PING WDT")   timerWrite(timerWDT, 0); //reset timer (feed watchdog);
@@ -188,7 +190,8 @@ void setup() {
   
   
   
-  BLEDevice::init("ESP32");
+  BLEDevice::init("ESP32 Basement Realy");
+  BLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_DEFAULT);
   // Retrieve a Scanner and set the callback we want to use to be informed when we
   // have detected a new device.  Specify that we want active scanning and start the
   // scan to run for 5 seconds.
@@ -198,6 +201,8 @@ void setup() {
   pBLEScan->setWindow(449);
   pBLEScan->setActiveScan(true);
   pBLEScan->start(5, false);
+  
+
 
   timerWDT = timerBegin(0, 80, true);                  //timer 0, div 80
   timerAttachInterrupt(timerWDT, &resetModule, true);  //attach callback
